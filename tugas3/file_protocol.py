@@ -15,12 +15,19 @@ pada akhirnya akan diproses dalam bentuk string
 * class FileProtocol akan memproses data yang masuk dalam bentuk
 string
 """
+MAX_LOG_LEN = 100
 
 class FileProtocol:
     def __init__(self):
         self.file = FileInterface()
     def proses_string(self,string_datamasuk=''):
-        logging.warning(f"string diproses: {string_datamasuk}")
+        log_display_string = string_datamasuk
+        if len(string_datamasuk) > MAX_LOG_LEN:
+            log_display_string = string_datamasuk[:MAX_LOG_LEN] + f"... [Truncated, Total len: {len(string_datamasuk)}]"
+        else:
+            log_display_string = string_datamasuk
+            
+        logging.warning(f"string diproses: {log_display_string}")
         c = shlex.split(string_datamasuk)
         if not c:
             return json.dumps(dict(status='ERROR', data='Empty request received'))
