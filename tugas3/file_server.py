@@ -17,16 +17,29 @@ class ProcessTheClient(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        while True:
-            data = self.connection.recv(32)
-            if data:
-                d = data.decode()
-                hasil = fp.proses_string(d)
-                hasil=hasil+"\r\n\r\n"
-                self.connection.sendall(hasil.encode())
-            else:
-                break
-        self.connection.close()
+        buffer = ""
+        try:
+            while True:
+                data = self.connection.recv(4096)
+                if not data:
+                    break
+                try:
+                    buffer += data.decode()
+                except Exception as e:
+                    logging.error(e)
+                    break
+                
+                if "\r\n\r\n" in buffer:
+                    command_to_process = buffer.split("\r\n\r\n", 1)[0]
+                    hasil = fp.proses_string(command_to_process)
+                    buffer = ""
+                    response_to_send=hasil+"\r\n\r\n"
+                    self.connection.sendall(response_to_send.encode())
+        except Exception as e:
+            logging.error(f"Unexpected error processing client {self.address}: {e}", exc_info=True)
+        finally:
+            self.connection.close()
+            logging.info(f"Connection with {self.address} ended.")
 
 
 class Server(threading.Thread):
@@ -41,14 +54,19 @@ class Server(threading.Thread):
         logging.warning(f"server berjalan di ip address {self.ipinfo}")
         self.my_socket.bind(self.ipinfo)
         self.my_socket.listen(1)
-        while True:
-            self.connection, self.client_address = self.my_socket.accept()
-            logging.warning(f"connection from {self.client_address}")
-
-            clt = ProcessTheClient(self.connection, self.client_address)
-            clt.start()
-            self.the_clients.append(clt)
-
+        try:
+            while True:
+                self.connection, self.client_address = self.my_socket.accept()
+                logging.warning(f"connection from {self.client_address}")
+    
+                clt = ProcessTheClient(self.connection, self.client_address)
+                clt.start()
+                self.the_clients.append(clt)
+        except Exception as e:
+            logging.critical(f"Server main loop encountered an error: {e}", exc_info=True)
+        finally:
+            self.my_socket.close()
+            logging.warning("Server shutdown.")
 
 def main():
     svr = Server(ipaddress='0.0.0.0',port=6666)

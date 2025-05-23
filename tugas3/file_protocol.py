@@ -16,16 +16,16 @@ pada akhirnya akan diproses dalam bentuk string
 string
 """
 
-
-
 class FileProtocol:
     def __init__(self):
         self.file = FileInterface()
     def proses_string(self,string_datamasuk=''):
         logging.warning(f"string diproses: {string_datamasuk}")
-        c = shlex.split(string_datamasuk.lower())
+        c = shlex.split(string_datamasuk)
+        if not c:
+            return json.dumps(dict(status='ERROR', data='Empty request received'))
         try:
-            c_request = c[0].strip()
+            c_request = c[0].lower().strip()
             logging.warning(f"memproses request: {c_request}")
             params = [x for x in c[1:]]
             cl = getattr(self.file,c_request)(params)

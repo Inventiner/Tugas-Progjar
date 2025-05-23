@@ -8,32 +8,30 @@ server_address=('0.0.0.0',7777)
 def send_command(command_str=""):
     global server_address
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(server_address)
-    logging.warning(f"connecting to {server_address}")
     try:
+        sock.connect(server_address)
+        logging.warning(f"connecting to {server_address}")
+
+        command_to_send = command_str + "\r\n\r\n"
+        
         logging.warning(f"sending message ")
-        sock.sendall(command_str.encode())
-        # Look for the response, waiting until socket is done (no more data)
-        data_received="" #empty string
+        sock.sendall(command_to_send.encode())
+
+        data_received=""
         while True:
-            #socket does not receive all data at once, data comes in part, need to be concatenated at the end of process
-            data = sock.recv(16)
+            data = sock.recv(1024)
             if data:
-                #data is not empty, concat with previous content
                 data_received += data.decode()
                 if "\r\n\r\n" in data_received:
-                    break
+                    message_part = data_received.split("\r\n\r\n", 1)[0]
+                    hasil = json.loads(message_part)
+                    logging.warning(f"Data received from server: {hasil}")
+                    return hasil
             else:
-                # no more data, stop the process by break
                 break
-        # at this point, data_received (string) will contain all data coming from the socket
-        # to be able to use the data_received as a dict, need to load it using json.loads()
-        hasil = json.loads(data_received)
-        logging.warning("data received from server:")
-        return hasil
-    except:
+    except Exception as e:
         logging.warning("error during data receiving")
-        return False
+        return dict(status='ERROR',data=str(e))
 
 
 def remote_list():
@@ -63,9 +61,42 @@ def remote_get(filename=""):
         print("Gagal")
         return False
 
+def remote_upload(filename=""):
+    if (filename == ""):
+        return False
+    try:            
+        with open(filename, 'rb') as fp:
+            file_content_bytes = fp.read()
+            
+        isifile = base64.b64encode(file_content_bytes).decode()
+        command_str=f"UPLOAD {filename} {isifile}"
+        hasil = send_command(command_str)
+
+        if (hasil['status']=='OK'):
+            return True
+        else:
+            print(f"Gagal UPLOAD '{filename}': {hasil.get('data', 'Unknown error')}")
+            return False  
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+
+def remote_delete(filename=""):
+    if not filename:
+        return False
+    command_str = f"DELETE {filename}"
+    hasil = send_command(command_str)
+    if hasil and hasil.get('status') == 'OK':
+        return True
+    else:
+        print(f"Gagal DELETE '{filename}': {hasil.get('data', 'Unknown error')}")
+        return False
 
 if __name__=='__main__':
     server_address=('172.16.16.101',6666)
+    remote_delete('its.png')
     remote_list()
-    remote_get('donalbebek.jpg')
+    remote_upload('its.png')
+    remote_list()
 
