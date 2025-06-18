@@ -2,17 +2,15 @@ from socket import *
 import socket
 import threading
 import logging
-import time
-import sys
 
 def proses_string(request_string):
     balas = "ERROR\r\n"
-    if (request_string.startswith("TIME") and request_string.endswith("\n")):
+    if (request_string.startswith("TIME") and request_string.endswith("\r\n")):
         from datetime import datetime
         now = datetime.now()
-        waktu = now.strftime("%d-%m-%Y %H:%M:%S")
+        waktu = now.strftime("%H:%M:%S")
         balas=f"JAM {waktu}\r\n"
-    if (request_string.startswith("QUIT") and request_string.endswith("\n")):
+    if (request_string.startswith("QUIT") and request_string.endswith("\r\n")):
         balas="XXX"
     return balas
 
@@ -24,13 +22,15 @@ class ProcessTheClient(threading.Thread):
         threading.Thread.__init__(self)
     def run(self):
         while True:
-            data = self.connection.recv(32)
+            data = self.connection.recv(64)
             if data:
                 request_s = data.decode()
                 balas = proses_string(request_s)
                 if (balas == "XXX"):
+                    logging.warning(f"Closing Connection")
                     self.connection.close()
                     break
+                print(f"Sending: {balas}")
                 self.connection.sendall(balas.encode())
             else:
                 break
@@ -43,7 +43,7 @@ class Server(threading.Thread):
 		threading.Thread.__init__(self)
 
 	def run(self):
-		self.my_socket.bind(('0.0.0.0',51000))
+		self.my_socket.bind(('0.0.0.0',45000))
 		self.my_socket.listen(1)
 		while True:
 			self.connection, self.client_address = self.my_socket.accept()
